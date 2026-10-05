@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="en" data-theme="light">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content">
+  <title>LiftTracker</title>
+  <meta name="description" content="A fast, offline-first workout logger with routines, rest timer, PR detection and progress charts.">
+  <meta property="og:title" content="LiftTracker">
+  <meta property="og:description" content="A fast, offline-first workout logger with routines, rest timer, PR detection and progress charts.">
+  <meta name="theme-color" content="#f3f4f1">
+  <meta name="color-scheme" content="light dark">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="apple-mobile-web-app-title" content="LiftTracker">
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="icon" href="icons/icon-192.png" type="image/png">
+  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="css/app.css">
+  <script>
+    // Apply the saved theme before first paint to avoid a flash.
+    try {
+      const s = JSON.parse(localStorage.getItem('lt_settings') || '{}');
+      const pref = s.theme || 'system';
+      const dark = pref === 'dark' || (pref === 'system' && matchMedia('(prefers-color-scheme: dark)').matches);
+      document.documentElement.dataset.theme = dark ? 'dark' : 'light';
+      document.querySelector('meta[name="theme-color"]').content = dark ? '#0d100f' : '#f3f4f1';
+    } catch (e) {}
+  </script>
+</head>
+<body>
+  <div id="splash" class="splash" aria-hidden="true"><img src="icons/icon-192.png" alt=""></div>
+  <div id="app"></div>
+  <noscript><p style="padding:24px;font-family:system-ui">LiftTracker needs JavaScript to run.</p></noscript>
+  <script type="module" src="js/main.js"></script>
+</body>
+</html>

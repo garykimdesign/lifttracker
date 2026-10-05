@@ -1,0 +1,36 @@
+// Trusted Web Activity wrapper for the LiftTracker PWA.
+// Build with Android Studio (Hedgehog+) or `./gradlew assembleRelease` on a machine with the Android SDK.
+plugins {
+    id 'com.android.application'
+}
+
+android {
+    namespace 'app.lifttracker.twa'
+    compileSdk 34
+
+    defaultConfig {
+        applicationId "app.lifttracker.twa"
+        minSdk 24
+        targetSdk 34
+        versionCode 1
+        versionName "2.0.0"
+
+        // The PWA origin. Must match strings.xml `host` and the assetlinks.json you publish there.
+        manifestPlaceholders = [
+            hostName: "gen-lang-client-0529107446.web.app",
+            defaultUrl: "https://gen-lang-client-0529107446.web.app/",
+            launcherName: "LiftTracker",
+        ]
+    }
+
+    buildTypes {
+        release {
+            minifyEnabled false
+            // Configure your signing key here (or via Play App Signing); its SHA-256 goes in assetlinks.json.
+        }
+    }
+}
+
+dependencies {
+    implementation 'com.google.androidbrowserhelper:androidbrowserhelper:2.5.0'
+}

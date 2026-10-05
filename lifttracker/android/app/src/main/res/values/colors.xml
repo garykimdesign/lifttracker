@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="statusBar">#F3F4F1</color>
+    <color name="statusBarDark">#0D100F</color>
+    <color name="splashBg">#F3F4F1</color>
+</resources>

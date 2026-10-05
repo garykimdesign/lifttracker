@@ -1,0 +1,190 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // ===============================================================
+    // Assumed Data Model
+    // ===============================================================
+    //
+    // Collection: workout_templates
+    // Document ID: UUID (templateId)
+    // Fields:
+    //   - id: string (required)
+    //   - name: string (required, size < 100)
+    //   - userId: string (required, matches auth.uid)
+    //   - exercises: list (required, size < 50)
+    //   - createdAt: timestamp (optional)
+    //
+    // Collection: workout_history
+    // Document ID: UUID (sessionId)
+    // Fields:
+    //   - id: string (required)
+    //   - name: string (required, size < 100)
+    //   - userId: string (required, matches auth.uid)
+    //   - startTime: number (required)
+    //   - endTime: number (required)
+    //   - exercises: list (required, size < 50)
+    //   - volume: number (optional)
+    //   - records: number (optional)
+    //
+    // Collection: users
+    // Document ID: auth.uid
+    // Fields:
+    //   - id: string (required)
+    //   - name: string (required)
+    //   - email: string (required)
+    //   - photoUrl: string (optional)
+    //   - unit: string (optional, enum: ['kg', 'lbs'])
+    //   - updatedAt: number (optional)
+    //
+    // ===============================================================
+
+    // ===============================================================
+    // Helper Functions
+    // ===============================================================
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
+    function isAdmin() {
+      return isAuthenticated() &&
+        (get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin' ||
+          (request.auth.token.email == "garykimdesign@gmail.com" && request.auth.token.email_verified == true));
+    }
+
+    function isDocOwner() {
+      return isAuthenticated() && request.auth.uid == resource.data.userId;
+    }
+
+    function uidUnchanged() {
+      return !('userId' in request.resource.data) || request.resource.data.userId == request.auth.uid;
+    }
+
+    function uidNotModified() {
+      return !('userId' in request.resource.data) || request.resource.data.userId == resource.data.userId;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function hasRequiredFields(fields) {
+      return request.resource.data.keys().hasAll(fields);
+    }
+
+    function isValidTemplate(data) {
+      return data.id is string &&
+             data.name is string && data.name.size() >= 0 && data.name.size() < 100 &&
+             data.userId is string && data.userId == request.auth.uid &&
+             data.exercises is list && data.exercises.size() < 50 &&
+             (!('updatedAt' in data) || data.updatedAt is number) &&
+             (!('order' in data) || data.order is number);
+    }
+
+    function isValidSession(data) {
+      return data.id is string &&
+             data.name is string && data.name.size() >= 0 && data.name.size() < 100 &&
+             data.userId is string && data.userId == request.auth.uid &&
+             data.startTime is number &&
+             (!('endTime' in data) || data.endTime is number) &&
+             data.exercises is list && data.exercises.size() < 50 &&
+             (!('volume' in data) || data.volume is number) &&
+             (!('records' in data) || data.records is number) &&
+             (!('unit' in data) || data.unit in ['kg', 'lbs']) &&
+             (!('updatedAt' in data) || data.updatedAt is number) &&
+             (!('templateId' in data) || data.templateId is string || data.templateId == null);
+    }
+
+    function isValidUser(data) {
+      return data.id is string && data.id == request.auth.uid &&
+             data.name is string && data.name.size() > 0 &&
+             data.email is string &&
+             (!('unit' in data) || data.unit in ['kg', 'lbs']) &&
+             (!('theme' in data) || data.theme in ['light', 'dark']) &&
+             (!('photoUrl' in data) || data.photoUrl is string) &&
+             (!('favorites' in data) || data.favorites is list) &&
+             (!('updatedAt' in data) || data.updatedAt is number);
+    }
+
+    function isValidExercise(data) {
+      return data.id is string &&
+             data.name is string && data.name.size() > 0 && data.name.size() < 100 &&
+             data.muscleGroup is string && data.muscleGroup.size() > 0 && data.muscleGroup.size() < 50 &&
+             data.userId is string && data.userId == request.auth.uid &&
+             (!('createdAt' in data) || data.createdAt is number) &&
+             (!('isFavorite' in data) || data.isFavorite is bool);
+    }
+
+    // ===============================================================
+    // Rules
+    // ===============================================================
+
+    match /workout_templates/{templateId} {
+      allow get: if isOwner(resource.data.userId);
+      allow list: if isAuthenticated() && resource.data.userId == request.auth.uid;
+      allow create: if isAuthenticated() && 
+                      isValidId(templateId) &&
+                      hasRequiredFields(['id', 'name', 'userId', 'exercises']) &&
+                      isValidTemplate(request.resource.data);
+      allow update: if isOwner(resource.data.userId) && 
+                      uidNotModified() &&
+                      isValidTemplate(request.resource.data);
+      allow delete: if isOwner(resource.data.userId);
+    }
+
+    match /workout_history/{sessionId} {
+      allow get: if isOwner(resource.data.userId) || isAdmin();
+      allow list: if (isAuthenticated() && resource.data.userId == request.auth.uid) || isAdmin();
+      allow create: if isAuthenticated() && 
+                      isValidId(sessionId) &&
+                      hasRequiredFields(['id', 'name', 'userId', 'startTime', 'endTime', 'exercises']) &&
+                      isValidSession(request.resource.data);
+      allow update: if isOwner(resource.data.userId) && 
+                      uidNotModified() &&
+                      isValidSession(request.resource.data);
+      allow delete: if isOwner(resource.data.userId) || isAdmin();
+    }
+
+    match /users/{userId} {
+      allow read: if isOwner(userId) || isAdmin();
+      allow create: if isOwner(userId) && isValidUser(request.resource.data);
+      allow update: if isOwner(userId) && isValidUser(request.resource.data);
+      allow delete: if isAdmin();
+    }
+
+    match /active_workouts/{userId} {
+      allow get: if isOwner(userId) || isAdmin();
+      // Allow list for single doc access (index)
+      allow list: if isOwner(userId) || isAdmin();
+      allow write: if isOwner(userId) && (request.resource == null || isValidSession(request.resource.data));
+    }
+
+    match /routine_drafts/{userId} {
+      allow get: if isOwner(userId) || isAdmin();
+      // Allow list for single doc access (index)
+      allow list: if isOwner(userId) || isAdmin();
+      allow write: if isOwner(userId) && (request.resource == null || isValidTemplate(request.resource.data));
+    }
+
+    match /custom_exercises/{exerciseId} {
+      allow get: if isOwner(resource.data.userId);
+      allow list: if isAuthenticated() && resource.data.userId == request.auth.uid;
+      allow create: if isAuthenticated() && 
+                      isValidId(exerciseId) &&
+                      hasRequiredFields(['id', 'name', 'muscleGroup', 'userId']) &&
+                      isValidExercise(request.resource.data);
+      allow update: if isOwner(resource.data.userId) && 
+                      uidNotModified() &&
+                      isValidExercise(request.resource.data);
+      allow delete: if isOwner(resource.data.userId);
+    }
+
+    // Default deny
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

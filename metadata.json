@@ -1,0 +1,8 @@
+{
+  "name": "LiftTracker",
+  "description": "A fast, offline-first workout logger with routines, rest timer, PR detection and progress charts.",
+  "permissions": [],
+  "capabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}
